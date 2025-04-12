@@ -10,10 +10,7 @@ def timer(timer_length_min: int, is_break: bool = typer.Option(False, "--break")
     Starts a TIMER_LENGTH_MIN minutes work timer, optionally starts it as a break timer with --break.
     """
     timer_total_seconds = timer_length_min  # multiply by 60 to get minutes
-    if is_break:
-        timer_style = Style.break_
-    else:
-        timer_style = Style.work
+    timer_style = Style.break_ if is_break else Style.work
 
     timer = Timer(timer_total_seconds, timer_style)
 
