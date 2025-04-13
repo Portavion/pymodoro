@@ -1,10 +1,17 @@
 import time
+import readchar
 import os
 import threading
 from rich import print
 
 from enum import Enum
-from rich.progress import track
+from rich.progress import (
+    BarColumn,
+    TaskProgressColumn,
+    TextColumn,
+    Progress,
+    TimeRemainingColumn,
+)
 
 
 class Style(Enum):
@@ -19,6 +26,9 @@ class TimerSound(Enum):
 
 START_SOUND = f"afplay /System/Library/Sounds/{TimerSound.start.value}.aiff"
 END_SOUND = f"afplay /System/Library/Sounds/{TimerSound.end.value}.aiff"
+END_NOTIFICATION = (
+    """osascript -e 'display dialog "Timer finished!" with title "Pymodoro"'"""
+)
 
 
 class Timer:
@@ -26,13 +36,26 @@ class Timer:
         self.duration = duration_sec
         self.timer_style = timer_style
         self.is_timer_started = False
+        self.is_timer_paused = False
 
     def play_sound(self):
         os.system(START_SOUND) if self.is_timer_started else os.system(END_SOUND)
 
+    def print_notification(self):
+        os.system(END_NOTIFICATION)
+
     def print_progress_timer(self):
-        for _ in track(range(self.duration), description=self.timer_style.value):
-            time.sleep(1)
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(bar_width=None, pulse_style="bar.pulse"),
+            TaskProgressColumn(),
+            TimeRemainingColumn(compact=True, elapsed_when_finished=True),
+        ) as progress:
+            timer = progress.add_task(self.timer_style.value, True, self.duration)
+
+            while not progress.finished:
+                progress.update(timer, advance=1)
+                time.sleep(1)
 
     def start_timer(self):
         self.is_timer_started = True
@@ -42,5 +65,9 @@ class Timer:
         )
         threading.Thread(target=self.play_sound, args=()).start()
         self.print_progress_timer()
+        self.stop_timer()
+
+    def stop_timer(self):
         self.is_timer_started = False
         self.play_sound()
+        self.print_notification()
