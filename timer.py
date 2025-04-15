@@ -1,7 +1,7 @@
 import time
-import readchar
 import os
 import threading
+import subprocess
 from rich import print
 
 from enum import Enum
@@ -26,15 +26,13 @@ class TimerSound(Enum):
 
 START_SOUND = f"afplay /System/Library/Sounds/{TimerSound.start.value}.aiff"
 END_SOUND = f"afplay /System/Library/Sounds/{TimerSound.end.value}.aiff"
-END_NOTIFICATION = (
-    """osascript -e 'display dialog "Timer finished!" with title "Pymodoro"'"""
-)
 
 
 class Timer:
     def __init__(self, duration_sec: int, timer_style: Style):
         self.duration = duration_sec
         self.timer_style = timer_style
+        self.timer_type = "work" if self.timer_style == Style.work else "break"
         self.is_timer_started = False
         self.is_timer_paused = False
 
@@ -42,7 +40,17 @@ class Timer:
         os.system(START_SOUND) if self.is_timer_started else os.system(END_SOUND)
 
     def print_notification(self):
-        os.system(END_NOTIFICATION)
+        script = 'display dialog "Timer ran out :)" with title "Pymodoro" buttons {{"OK"}} default button "OK"'
+
+        command = ["osascript", "-e", script]
+
+        subprocess.run(
+            command,
+            capture_output=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
 
     def print_progress_timer(self):
         with Progress(
@@ -50,6 +58,7 @@ class Timer:
             BarColumn(bar_width=None, pulse_style="bar.pulse"),
             TaskProgressColumn(),
             TimeRemainingColumn(compact=True, elapsed_when_finished=True),
+            transient=True,
         ) as progress:
             timer = progress.add_task(self.timer_style.value, True, self.duration)
 
@@ -59,9 +68,8 @@ class Timer:
 
     def start_timer(self):
         self.is_timer_started = True
-        timer_type = "work" if self.timer_style == Style.work else "break"
         print(
-            f":hourglass: [bold red]Starting[/bold red] a [cyan]{self.duration // 60} min [/cyan]{timer_type} timer :hourglass:"
+            f":hourglass: [bold red]Starting[/bold red] a [cyan]{self.duration // 60} min [/cyan]{self.timer_type} timer :hourglass:"
         )
         threading.Thread(target=self.play_sound, args=()).start()
         self.print_progress_timer()
@@ -69,5 +77,5 @@ class Timer:
 
     def stop_timer(self):
         self.is_timer_started = False
-        self.play_sound()
+        threading.Thread(target=self.play_sound, args=()).start()
         self.print_notification()

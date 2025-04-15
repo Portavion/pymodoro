@@ -1,4 +1,7 @@
 import typer
+import termios
+import tty
+import sys
 from timer import Timer, Style
 
 app = typer.Typer()
@@ -18,4 +21,21 @@ def timer(timer_length_min: int, is_break: bool = typer.Option(False, "--break")
 
 
 if __name__ == "__main__":
-    typer.run(timer)
+    old_settings = None
+    fd = sys.stdin.fileno()
+    try:
+        old_settings = termios.tcgetattr(fd)
+        tty.setcbreak(sys.stdin.fileno())
+
+        typer.run(timer)
+    except termios.error as e:
+        print(f"Error: {e}")
+        if old_settings:
+            try:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            except (termios.error, OSError):
+                pass
+    finally:
+        if old_settings:
+            termios.tcflush(fd, termios.TCIFLUSH)
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
